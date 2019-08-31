@@ -1,2 +1,2 @@
-# keras2vec
-Keras GPU implementatino of Doc2Vec
+# Keras2Vec
+A Keras implementation, with gpu support, of the Doc2Vec network
