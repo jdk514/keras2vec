@@ -1,7 +1,7 @@
 from keras.layers import Input, Embedding, Average, Dot, Dense
 from keras.models import Model
 
-from keras2vec import keras2vec_generator
+from keras2vec import data_generator
 
 class Keras2Vec():
 
@@ -12,7 +12,7 @@ class Keras2Vec():
             documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
         """
 
-        self.generator = keras2vec_generator(documents)
+        self.generator = data_generator(documents)
 
 
     def build_model(self):
