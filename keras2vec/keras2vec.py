@@ -1,18 +1,28 @@
 from keras.layers import Input, Embedding, Average, Dot, Dense
 from keras.models import Model
 
-from keras2vec import data_generator
+from keras2vec.data_generator import DataGenerator
 
-class Keras2Vec():
 
-    def __init__(self, documents):
+# TODO: Fix naming convention between words, text, labels, docs
+class Keras2Vec:
+
+    def __init__(self, documents, embedding_size=16, seq_size=3):
         """Load the vector generator with a list of documents
 
         Args:
             documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
         """
 
-        self.generator = data_generator(documents)
+        self.generator = DataGenerator(documents)
+        # TODO: Fix method for getting model attributes
+        self.doc_vocab = len(self.generator.doc_vocab)
+        self.label_vocab = len(self.generator.label_vocab)
+        self.word_vocab = len(self.generator.text_vocab)
+        self.num_labels = len(documents[0].labels)
+
+        self.embedding_size = embedding_size
+        self.seq_size = seq_size
 
 
     def build_model(self):
@@ -22,27 +32,27 @@ class Keras2Vec():
         labels = Input(shape=(self.num_labels,))
         sequence = Input(shape=(self.seq_size,))
 
-        doc_inference = Embedding(input=(1, ),
-                                  outpu_dim=(self.embedding_size, ),
+        doc_inference = Embedding(input_dim=1,
+                                  output_dim=self.embedding_size,
                                   input_length=1,
                                   name='inferred_vector')(doc_ids)
 
-        doc_embedding = Embedding(input_dim=(self.doc_vocab, ),
-                                  outpu_dim=(self.embedding_size, ),
+        doc_embedding = Embedding(input_dim=self.doc_vocab,
+                                  output_dim=self.embedding_size,
                                   input_length=1,
                                   name="doc_embedding")(doc_ids)
 
-        label_embedding = Embedding(input_dim=(self.label_vocab, ),
-                                    outpu_dim=(self.embedding_size, ),
+        label_embedding = Embedding(input_dim=self.label_vocab,
+                                    output_dim=self.embedding_size,
                                     input_length=self.num_labels,
                                     name="label_embedding")(labels)
 
-        seq_embedding = Embedding(input_dim=(self.word_vocab, ),
-                                  outpu_dim=(self.embedding_size, ),
+        seq_embedding = Embedding(input_dim=self.word_vocab,
+                                  output_dim=self.embedding_size,
                                   input_length=self.seq_size,
                                   name="word_embedding")(sequence)
 
-        context = Average()(label_embedding, seq_embedding)
+        context = Average()([label_embedding, seq_embedding])
 
         # Build training model
         train_merged = Dot()(doc_embedding, context)
@@ -80,8 +90,9 @@ class Keras2Vec():
 
         pass
 
-    def fit(self):
-        pass
+    def fit(self, epochs):
+        self.train_model.fit_generator(self.generator, steps_per_epcoh=1,
+                                       epochs=epochs)
 
     def fit_generator(self):
         pass
