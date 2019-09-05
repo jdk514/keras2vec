@@ -3,3 +3,4 @@
 
 # File types
 *.pyc
+*sync-conflict*
