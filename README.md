@@ -1,13 +1,15 @@
 # Keras2Vec
 A Keras implementation, with gpu support, of the Doc2Vec network
 
-# Installation
+## Using Keras2Vec
 -----
-This package can be installed using pip:
-	
-	pip install keras2vec
+This package can be installed via pip:
+        
+        pip install keras2vec
 
-# Example Usage
+Documentation for Keras2Vec can be found on [readthedocs](https://keras2vec.readthedocs.io/en/latest/).
+
+## Example Usage
 -----
 ```python
 from keras2vec.keras2vec import Keras2Vec
