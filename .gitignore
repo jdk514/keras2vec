@@ -7,3 +7,9 @@
 
 # Sphinx files
 /docs/_build/*
+
+# Project files
+commands.txt
+/dist/*
+/Keras2Vec.egg-info/*
+/build/*
