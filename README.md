@@ -4,6 +4,7 @@ A Keras implementation, with gpu support, of the Doc2Vec network
 # Installation
 -----
 This package can be installed using pip:
+	
 	pip install keras2vec
 
 # Example Usage
