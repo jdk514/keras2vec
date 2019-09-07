@@ -4,3 +4,6 @@
 # File types
 *.pyc
 *sync-conflict*
+
+# Sphinx files
+docs/_build/*
