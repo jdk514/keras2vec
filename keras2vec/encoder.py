@@ -1,16 +1,21 @@
 
 class Encoder():
+    """Simple encoder class to fit/transform/reverse_transform data.
+
+    Args:
+        items (:obj:`list` of objects): items to encode.
+    """
+
     def __init__(self, items):
-        """Take in items to encode
-        Args:
-            items (:obj:`list` of objects)"""
         self.encoder = self.inverse_encoder = None
         self.encode(items)
 
     def encode(self, items):
         """Take in items to encode
+
         Args:
-            items (:obj:`list` of objects)"""
+            items (:obj:`list` of objects)
+        """
         encoder = {}
         inverse_encoder = {}
         for ix, item in enumerate(items):
@@ -22,6 +27,7 @@ class Encoder():
 
     def transform(self, item):
         """Encodes a given object
+
         Args:
             item (object): Object to encode
         Returns:
@@ -37,10 +43,12 @@ class Encoder():
 
     def inverse_transform(self, index):
         """Reverses the encoding for a given index
+
         Args:
             index (int): index to reverse encoding
         Returns:
-            object: decoded object"""
+            object: decoded object
+        """
 
         try:
             item = self.inverse_encoder[index]

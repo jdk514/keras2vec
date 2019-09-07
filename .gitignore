@@ -6,4 +6,4 @@
 *sync-conflict*
 
 # Sphinx files
-docs/_build/*
+/docs/_build/*

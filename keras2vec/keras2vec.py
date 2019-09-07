@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from keras.layers import Input, Embedding, Average, Dot, Dense, Lambda, Concatenate
+from keras.layers import Input, Embedding, Average, Dot, Dense, Lambda, Concatenate, Flatten
 from keras.models import Model
 
 from keras2vec.data_generator import DataGenerator
@@ -8,15 +8,17 @@ from keras2vec.data_generator import DataGenerator
 
 # TODO: Fix naming convention between words, text, labels, docs
 class Keras2Vec:
+    """The Keras2Vec class is where the Doc2Vec model will be trained. By taking in a set of
+    Documents it can begin to train against them to learn the embedding space that best represents
+    the provided documents.
+
+    Args:
+        documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
+    """
 
     def __init__(self, documents, embedding_size=16, seq_size=3):
-        """Load the vector generator with a list of documents
-
-        Args:
-            documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
-        """
-
-        self.generator = DataGenerator(documents)
+        self.train_model = self.infer_model = None
+        self.generator = DataGenerator(documents, seq_size)
         # TODO: Fix method for getting model attributes
         self.doc_vocab = len(self.generator.doc_vocab)
         self.label_vocab = len(self.generator.label_vocab)
@@ -28,7 +30,7 @@ class Keras2Vec:
 
 
     def build_model(self):
-        """Build the keras model to embed documents"""
+        """Build both the training and inference models for Doc2Vec"""
 
         doc_ids = Input(shape=(1,))
         sequence = Input(shape=(self.seq_size,))
@@ -62,7 +64,7 @@ class Keras2Vec:
                                   name="word_embedding")(sequence)
 
         if self.seq_size > 1:
-            split_seq = Lambda(self.split_layer())(seq_embedding)
+            split_seq = Lambda(self.__split_layer())(seq_embedding)
             avg_seq = Average()(split_seq)
         else:
             avg_seq = seq_embedding
@@ -74,7 +76,8 @@ class Keras2Vec:
 
         # Build training model
         train_merged = Average()([doc_embedding, context])
-        train_output = Dense(1, activation='sigmoid')(train_merged)
+        train_flattened = Flatten()(train_merged)
+        train_output = Dense(1, activation='sigmoid')(train_flattened)
 
         if self.num_labels > 0:
             train_model = Model(inputs=[doc_ids, labels, sequence],
@@ -91,7 +94,8 @@ class Keras2Vec:
 
         # Build model for inference
         infer_merged = Average()([doc_inference, context])
-        infer_output = Dense(1, activation='sigmoid')(infer_merged)
+        infer_flattened = Flatten()(infer_merged)
+        infer_output = Dense(1, activation='sigmoid')(infer_flattened)
 
         if self.num_labels > 0:
             infer_model = Model(inputs=[doc_ids, labels, sequence],
@@ -102,15 +106,14 @@ class Keras2Vec:
         infer_model.compile(optimizer='adamax',
                             loss='binary_crossentropy',
                             metrics=['accuracy'])
-        self.train_model = infer_model
+        self.infer_model = infer_model
 
 
-    def split_layer(self):
-        def split_func(layer):
-            return tf.split(layer, self.embedding_size, axis=0)
+    def __split_layer(self):
+        def _lambda(layer):
+            return tf.split(layer, self.seq_size, axis=1)
 
-        return split_func
-
+        return _lambda
 
     def infer_vector(self):
         """Infer a documents vector by training the model against unseen labels
@@ -121,12 +124,14 @@ class Keras2Vec:
         Returns:
             np.array: vector representation of provided document
         """
-
-        pass
+        raise NotImplementedError("This functionality is not currently implemented.")
 
     def fit(self, epochs):
-        self.train_model.fit_generator(self.generator, steps_per_epcoh=1,
-                                       epochs=epochs)
+        """This function trains Keras2Vec with the provided documents
 
-    def fit_generator(self):
-        pass
+        Args:
+            epochs(int): How many times to iterate over the training dataset
+        """
+        # TODO: Fix weird generator syntax
+        self.train_model.fit_generator(self.generator.generator(), steps_per_epoch=1,
+                                       epochs=epochs)
