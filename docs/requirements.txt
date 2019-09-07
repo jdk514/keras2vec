@@ -1,0 +1,5 @@
+sphinx
+sphinxcontrib-httpdomain
+tensorflow >= 1.14.0
+keras >= 2.2.4
+numpy >= 1.16.4
