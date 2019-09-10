@@ -1,6 +1,7 @@
 import tensorflow as tf
 
-from keras.layers import Input, Embedding, Average, Dot, Dense, Lambda, Concatenate, Flatten
+from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten
+from keras.optimizers import Adamax
 from keras.models import Model
 
 from keras2vec.data_generator import DataGenerator
@@ -77,7 +78,8 @@ class Keras2Vec:
         # Build training model
         train_merged = Average()([doc_embedding, context])
         train_flattened = Flatten()(train_merged)
-        train_output = Dense(1, activation='sigmoid')(train_flattened)
+        train_hidden = Dense(self.embedding_size * 3, activation='relu')(train_flattened)
+        train_output = Dense(1, activation='sigmoid')(train_hidden)
 
         if self.num_labels > 0:
             train_model = Model(inputs=[doc_ids, labels, sequence],
@@ -86,7 +88,8 @@ class Keras2Vec:
             train_model = Model(inputs=[doc_ids, sequence],
                                 outputs=train_output)
 
-        train_model.compile(optimizer='adamax',
+        optimizer = Adamax(lr=0.1)
+        train_model.compile(optimizer=optimizer,
                             loss='binary_crossentropy',
                             metrics=['accuracy'])
         self.train_model = train_model
