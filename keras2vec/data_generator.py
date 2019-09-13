@@ -14,7 +14,7 @@ class DataGenerator:
         documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
     """
 
-    def __init__(self, documents, seq_size, neg_samples=5):
+    def __init__(self, documents, seq_size, neg_samples):
         self.doc_vocab = self.label_vocab = self.text_vocab = None
         self.doc_enc = self.label_enc = self.text_enc = None
 
@@ -102,8 +102,7 @@ class DataGenerator:
         return neg_samples
 
 
-    # TODO: incorporate neg_sampling
-    def encode_doc(self, doc, neg_sampling=False, num_neg_samps=5):
+    def encode_doc(self, doc, neg_sampling=False, num_neg_samps=3):
         """Encodes a document for the keras model
 
         Args:
