@@ -1,6 +1,7 @@
 import tensorflow as tf
 
-from keras.layers import Input, Embedding, Average, Dot, Dense, Lambda, Concatenate, Flatten
+from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot
+from keras.optimizers import Adamax, Adam, SGD
 from keras.models import Model
 
 from keras2vec.data_generator import DataGenerator
@@ -16,9 +17,11 @@ class Keras2Vec:
         documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
     """
 
-    def __init__(self, documents, embedding_size=16, seq_size=3):
+    def __init__(self, documents, embedding_size=16, seq_size=3, neg_sampling=5):
         self.train_model = self.infer_model = None
-        self.generator = DataGenerator(documents, seq_size)
+        self.word_embeddings = self.doc_embeddings = None
+
+        self.generator = DataGenerator(documents, seq_size, neg_sampling)
         # TODO: Fix method for getting model attributes
         self.doc_vocab = len(self.generator.doc_vocab)
         self.label_vocab = len(self.generator.label_vocab)
@@ -75,9 +78,11 @@ class Keras2Vec:
             context = avg_seq
 
         # Build training model
-        train_merged = Average()([doc_embedding, context])
+        # train_merged = Dot(axes=-1, normalize=True)([doc_embedding, context])
+        train_merged = Concatenate()([doc_embedding, context])
         train_flattened = Flatten()(train_merged)
-        train_output = Dense(1, activation='sigmoid')(train_flattened)
+        train_hidden = Dense(self.embedding_size * 3, activation='relu')(train_flattened)
+        train_output = Dense(1, activation='sigmoid')(train_hidden)
 
         if self.num_labels > 0:
             train_model = Model(inputs=[doc_ids, labels, sequence],
@@ -86,7 +91,8 @@ class Keras2Vec:
             train_model = Model(inputs=[doc_ids, sequence],
                                 outputs=train_output)
 
-        train_model.compile(optimizer='adamax',
+        optimizer = Adamax(lr=0.1)
+        train_model.compile(optimizer=optimizer,
                             loss='binary_crossentropy',
                             metrics=['accuracy'])
         self.train_model = train_model
@@ -126,6 +132,7 @@ class Keras2Vec:
         """
         raise NotImplementedError("This functionality is not currently implemented.")
 
+    # TODO: Implement check for early stopping!
     def fit(self, epochs):
         """This function trains Keras2Vec with the provided documents
 
@@ -135,3 +142,40 @@ class Keras2Vec:
         # TODO: Fix weird generator syntax
         self.train_model.fit_generator(self.generator.generator(), steps_per_epoch=1,
                                        epochs=epochs)
+
+        self.doc_embeddings = self.train_model.get_layer('doc_embedding').get_weights()[0]
+        self.word_embeddings = self.train_model.get_layer('word_embedding').get_weights()[0]
+
+    def get_doc_embeddings(self):
+        """Get the document vectors/embeddings from the trained model
+        Returns:
+            np.array: Array of document embeddings indexed by encoded doc
+        """
+        return self.doc_embeddings
+
+    def get_doc_embedding(self, doc):
+        """Get the vector/embedding for the provided doc
+        Args:
+            doc (object): Object used in the inital generation of the model
+        Returns:
+            np.array: embedding for the provided doc
+        """
+        enc_doc = self.generator.doc_enc.transform(doc)
+        return self.doc_embeddings[enc_doc]
+
+    def get_word_embeddings(self):
+        """Get the vectors/embeddings from the trained model
+        Returns:
+            np.array: Array of embeddings indexed by encoded doc
+        """
+        return self.word_embeddings
+
+    def get_word_embedding(self, word):
+        """Get the vector/embedding for the provided word
+        Args:
+            word (object): Object used in the inital generation of the model
+        Returns:
+            np.array: embedding for the provided doc
+        """
+        enc_word = self.generator.word_enc.transform(word)
+        return self.word_embeddings[enc_word]

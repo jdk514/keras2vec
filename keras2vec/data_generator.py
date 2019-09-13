@@ -14,9 +14,12 @@ class DataGenerator:
         documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
     """
 
-    def __init__(self, documents, seq_size):
+    def __init__(self, documents, seq_size, neg_samples):
         self.doc_vocab = self.label_vocab = self.text_vocab = None
         self.doc_enc = self.label_enc = self.text_enc = None
+
+        self.neg_samples = neg_samples
+        self.seq_size = seq_size
 
         # TODO: Change the documents attribute to encoded documents
         [doc.gen_windows(seq_size) for doc in documents]
@@ -78,8 +81,28 @@ class DataGenerator:
             yield [np.vstack(batch_docs), np.array(batch_words)], outputs
 
 
-    # TODO: incorporate neg_sampling
-    def encode_doc(self, doc, neg_sampling=False, num_neg_samps=5):
+    # TODO: Replace with generator
+    def neg_sampling(self, window):
+        neg_samples = []
+        win_ix = int((self.seq_size-1)/2)
+        center_word = window[win_ix]
+        word_dict = self.text_vocab.copy()
+        word_dict.remove(center_word)
+        dict_len = len(word_dict)
+
+        for ix in range(self.neg_samples):
+            if len(word_dict) < 1:
+                break
+            rep_word = random.sample(word_dict, 1)[0]
+            word_dict.remove(rep_word)
+            new_win = window.copy()
+            new_win[win_ix] = rep_word
+            neg_samples.append(new_win)
+
+        return neg_samples
+
+
+    def encode_doc(self, doc, neg_sampling=False, num_neg_samps=3):
         """Encodes a document for the keras model
 
         Args:
@@ -99,6 +122,15 @@ class DataGenerator:
             labels.append(enc_labels)
             words.append(enc_words)
             outputs.append(1)
+
+            if self.neg_samples > 0:
+                for neg_samp in self.neg_sampling(window):
+                    enc_words = [self.text_enc.transform(word) for word in neg_samp]
+                    docs.append(enc_doc)
+                    labels.append(enc_labels)
+                    words.append(enc_words)
+                    outputs.append(0)
+
 
         ret = (np.vstack(docs),
                np.vstack(labels),
