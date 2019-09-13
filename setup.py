@@ -5,13 +5,16 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="Keras2Vec",
-    version="0.0.1",
+    version="0.0.2",
     author="Joel Klein",
     author_email="jdk51405@gmail.com",
     description="Keras implementation of Doc2Vec",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jdk514/keras2vec",
+    project_urls={
+        "Documentation": "https://keras2vec.readthedocs.io/en/latest/index.html",
+    },
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3.6",

@@ -1,5 +1,5 @@
 # Keras2Vec
-A Keras implementation, with gpu support, of the Doc2Vec network
+A Keras implementation, enabling gpu support, of Doc2Vec
 
 ## Using Keras2Vec
 This package can be installed via pip:
