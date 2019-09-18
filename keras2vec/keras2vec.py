@@ -1,4 +1,5 @@
 import tensorflow as tf
+import keras.backend as K
 
 from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot
 from keras.optimizers import Adamax, Adam, SGD
@@ -109,9 +110,6 @@ class Keras2Vec:
         else:
             infer_model = Model(inputs=[doc_ids, sequence], outputs=infer_output)
 
-        infer_model.compile(optimizer='adamax',
-                            loss='binary_crossentropy',
-                            metrics=['accuracy'])
         self.infer_model = infer_model
 
 
@@ -121,7 +119,7 @@ class Keras2Vec:
 
         return _lambda
 
-    def infer_vector(self):
+    def infer_vector(self, infer_doc, epochs=5, steps=1, lr=0.1, decay=0, init_infer=True):
         """Infer a documents vector by training the model against unseen labels
         and text
 
@@ -130,7 +128,28 @@ class Keras2Vec:
         Returns:
             np.array: vector representation of provided document
         """
-        raise NotImplementedError("This functionality is not currently implemented.")
+        tmp_generator = self.generator.get_infer_generator(infer_doc)
+
+        if init_infer:
+            sess = K.get_session()
+            self.infer_model.get_layer('inferred_vector').embeddings.initializer.run(session=sess)
+
+        self.train_model.get_layer(name='word_embedding').trainable = False
+        try:
+            self.train_model.get_layer(name='label_embedding').trainable = False
+        except ValueError:
+            # Label not generated for this run
+            pass
+
+        optimizer = Adamax(lr=lr, decay=decay)
+        self.infer_model.compile(loss="binary_crossentropy",
+                                 optimizer=optimizer,
+                                 metrics=['accuracy'])
+        history = self.infer_model.fit_generator(tmp_generator,
+                                                 steps_per_epoch=steps,
+                                                 epochs=epochs)
+
+        self.infer_embedding = self.infer_model.get_layer('inferred_vector').get_weights()[0]
 
     # TODO: Implement check for early stopping!
     def fit(self, epochs):
@@ -139,12 +158,22 @@ class Keras2Vec:
         Args:
             epochs(int): How many times to iterate over the training dataset
         """
+        try:
+            self.train_model.get_layer(name='label_embedding').trainable = True
+        except ValueError:
+            # label_embedding not guaranteed to exist
+            pass
+        self.train_model.get_layer(name='word_embedding').trainable = True
+
         # TODO: Fix weird generator syntax
         self.train_model.fit_generator(self.generator.generator(), steps_per_epoch=1,
                                        epochs=epochs)
 
         self.doc_embeddings = self.train_model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.train_model.get_layer('word_embedding').get_weights()[0]
+
+    def get_infer_embedding(self):
+        return self.infer_embedding
 
     def get_doc_embeddings(self):
         """Get the document vectors/embeddings from the trained model

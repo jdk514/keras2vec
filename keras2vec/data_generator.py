@@ -1,3 +1,4 @@
+import copy
 import random
 
 import numpy as np
@@ -49,6 +50,15 @@ class DataGenerator:
         self.doc_enc = Encoder(self.doc_vocab)
         self.label_enc = Encoder(self.label_vocab)
         self.text_enc = Encoder(self.text_vocab)
+
+    def get_infer_generator(self, infer_doc):
+        infer_gen = copy.deepcopy(self)
+        infer_doc.gen_windows(self.seq_size)
+        infer_gen.doc_vocab = set([0])
+        infer_gen.documents = [infer_doc]
+
+        return infer_gen.generator()
+
 
     # TODO: Enable partial generation of data
     def generator(self):

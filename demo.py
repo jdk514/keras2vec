@@ -11,19 +11,21 @@ def doc_similarity(embeddings, id_1, id_2):
 
 if __name__ == "__main__":
 
-    docs =["red yellow green blue orange violet green blue orange violet",
-           "blue orange green gray black teal tan blue violet gray black teal",
-           "blue violet gray black teal yellow orange tan white brown",
-           "black blue yellow orange tan white brown white green teal pink blue",
-           "orange pink blue white yellow black black teal tan",
-           "white green teal gray black pink blue blue violet gray black teal yellow",
-           "cat dog rat gerbil hamster goat lamb goat cow rat dog pig",
-           "lamb goat cow rat dog pig dog chicken goat cat cow pig",
-           "pig lamb goat rat gerbil dog cat dog rat gerbil hamster goat",
-           "dog chicken goat cat cow pig gerbil goat cow pig gerbil lamb",
-           "rat hamster pig dog chicken cat lamb goat cow rat dog pig dog",
-           "gerbil goat cow pig gerbil lamb rat hamster pig dog chicken cat"
+    docs = ["red yellow green blue orange violet green blue orange violet",
+            "blue orange green gray black teal tan blue violet gray black teal",
+            "blue violet gray black teal yellow orange tan white brown",
+            "black blue yellow orange tan white brown white green teal pink blue",
+            "orange pink blue white yellow black black teal tan",
+            "white green teal gray black pink blue blue violet gray black teal yellow",
+            "cat dog rat gerbil hamster goat lamb goat cow rat dog pig",
+            "lamb goat cow rat dog pig dog chicken goat cat cow pig",
+            "pig lamb goat rat gerbil dog cat dog rat gerbil hamster goat",
+            "dog chicken goat cat cow pig gerbil goat cow pig gerbil lamb",
+            "rat hamster pig dog chicken cat lamb goat cow rat dog pig dog",
+            "gerbil goat cow pig gerbil lamb rat hamster pig dog chicken cat"
            ]
+
+    inference_doc = "teal yellow pink blue blue orange green gray"
 
     keras_docs = [Document(ix, [], doc) for ix, doc in enumerate(docs)]
 
@@ -42,3 +44,13 @@ if __name__ == "__main__":
         print("Like topics are more similar")
     else:
         print("Something went wrong during training!")
+
+    """Using the trained model we can now infer document vectors by training
+    against a model where the word and label embedding layers have been frozen"""
+
+    doc2vec.infer_vector(Document(2, [], inference_doc), lr=.1, epochs=10, init_infer=False)
+    infer_vec = doc2vec.get_infer_embedding()
+    infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))
+    print(infer_dist)
+
+    print("Done")
