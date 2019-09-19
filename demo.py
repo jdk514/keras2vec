@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras2vec.keras2vec import Keras2Vec
 from keras2vec.document import Document
 
@@ -25,7 +27,7 @@ if __name__ == "__main__":
             "gerbil goat cow pig gerbil lamb rat hamster pig dog chicken cat"
            ]
 
-    inference_doc = "teal yellow pink blue blue orange green gray"
+    inference_doc = "red yellow green blue orange violet green blue orange violet"
 
     keras_docs = [Document(ix, [], doc) for ix, doc in enumerate(docs)]
 
@@ -46,11 +48,12 @@ if __name__ == "__main__":
         print("Something went wrong during training!")
 
     """Using the trained model we can now infer document vectors by training
-    against a model where the word and label embedding layers have been frozen"""
+    against a model where only the inference layer is trainable"""
 
-    doc2vec.infer_vector(Document(2, [], inference_doc), lr=.1, epochs=10, init_infer=False)
+    doc2vec.infer_vector(Document(0, [], inference_doc), lr=.1, epochs=5)
     infer_vec = doc2vec.get_infer_embedding()
-    infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))
-    print(infer_dist)
+    infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
+    infer_dist = "{0:0.2f}".format(infer_dist)
+    print(f'Document 0 has a cosine similarity of {infer_dist} between train and inferred vectors')
 
     print("Done")
