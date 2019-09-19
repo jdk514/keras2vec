@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras2vec.keras2vec import Keras2Vec
 from keras2vec.document import Document
 
@@ -11,19 +13,21 @@ def doc_similarity(embeddings, id_1, id_2):
 
 if __name__ == "__main__":
 
-    docs =["red yellow green blue orange violet green blue orange violet",
-           "blue orange green gray black teal tan blue violet gray black teal",
-           "blue violet gray black teal yellow orange tan white brown",
-           "black blue yellow orange tan white brown white green teal pink blue",
-           "orange pink blue white yellow black black teal tan",
-           "white green teal gray black pink blue blue violet gray black teal yellow",
-           "cat dog rat gerbil hamster goat lamb goat cow rat dog pig",
-           "lamb goat cow rat dog pig dog chicken goat cat cow pig",
-           "pig lamb goat rat gerbil dog cat dog rat gerbil hamster goat",
-           "dog chicken goat cat cow pig gerbil goat cow pig gerbil lamb",
-           "rat hamster pig dog chicken cat lamb goat cow rat dog pig dog",
-           "gerbil goat cow pig gerbil lamb rat hamster pig dog chicken cat"
+    docs = ["red yellow green blue orange violet green blue orange violet",
+            "blue orange green gray black teal tan blue violet gray black teal",
+            "blue violet gray black teal yellow orange tan white brown",
+            "black blue yellow orange tan white brown white green teal pink blue",
+            "orange pink blue white yellow black black teal tan",
+            "white green teal gray black pink blue blue violet gray black teal yellow",
+            "cat dog rat gerbil hamster goat lamb goat cow rat dog pig",
+            "lamb goat cow rat dog pig dog chicken goat cat cow pig",
+            "pig lamb goat rat gerbil dog cat dog rat gerbil hamster goat",
+            "dog chicken goat cat cow pig gerbil goat cow pig gerbil lamb",
+            "rat hamster pig dog chicken cat lamb goat cow rat dog pig dog",
+            "gerbil goat cow pig gerbil lamb rat hamster pig dog chicken cat"
            ]
+
+    inference_doc = "red yellow green blue orange violet green blue orange violet"
 
     keras_docs = [Document(ix, [], doc) for ix, doc in enumerate(docs)]
 
@@ -42,3 +46,12 @@ if __name__ == "__main__":
         print("Like topics are more similar")
     else:
         print("Something went wrong during training!")
+
+    """Using the trained model we can now infer document vectors by training
+    against a model where only the inference layer is trainable"""
+
+    doc2vec.infer_vector(Document(0, [], inference_doc), lr=.1, epochs=5)
+    infer_vec = doc2vec.get_infer_embedding()
+    infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
+    infer_dist = "{0:0.2f}".format(infer_dist)
+    print(f'Document 0 has a cosine similarity of {infer_dist} between train and inferred vectors')

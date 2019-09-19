@@ -1,4 +1,5 @@
 import tensorflow as tf
+import keras.backend as K
 
 from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot
 from keras.optimizers import Adamax, Adam, SGD
@@ -37,6 +38,8 @@ class Keras2Vec:
 
         doc_ids = Input(shape=(1,))
         sequence = Input(shape=(self.seq_size,))
+
+        # Labels aren't required, so determine if they have been added for this model
         if self.num_labels > 0:
             labels = Input(shape=(self.num_labels,))
 
@@ -51,6 +54,7 @@ class Keras2Vec:
             else:
                 avg_labels = label_embedding
 
+        # Setup the embedding layers for training and inference
         doc_inference = Embedding(input_dim=1,
                                   output_dim=self.embedding_size,
                                   input_length=1,
@@ -66,12 +70,14 @@ class Keras2Vec:
                                   input_length=self.seq_size,
                                   name="word_embedding")(sequence)
 
+        # If the sequence size is greater than 1, we need to average each element
         if self.seq_size > 1:
             split_seq = Lambda(self.__split_layer())(seq_embedding)
             avg_seq = Average()(split_seq)
         else:
             avg_seq = seq_embedding
 
+        # If we have labels, we are currently averaging the seq and label data to provide document context
         if self.num_labels > 0:
             context = Average()([avg_labels, avg_seq])
         else:
@@ -79,11 +85,12 @@ class Keras2Vec:
 
         # Build training model
         # train_merged = Dot(axes=-1, normalize=True)([doc_embedding, context])
-        train_merged = Concatenate()([doc_embedding, context])
-        train_flattened = Flatten()(train_merged)
-        train_hidden = Dense(self.embedding_size * 3, activation='relu')(train_flattened)
-        train_output = Dense(1, activation='sigmoid')(train_hidden)
+        train_merged = Concatenate(name='train_merged')([doc_embedding, context])
+        train_flattened = Flatten(name='train_flattened')(train_merged)
+        train_hidden = Dense(self.embedding_size * 3, activation='relu', name='train_hidden')(train_flattened)
+        train_output = Dense(1, activation='sigmoid', name='train_output')(train_hidden)
 
+        # Depending on the nature of the Documents, our model inputs/outputs alter
         if self.num_labels > 0:
             train_model = Model(inputs=[doc_ids, labels, sequence],
                                 outputs=train_output)
@@ -99,38 +106,70 @@ class Keras2Vec:
 
 
         # Build model for inference
-        infer_merged = Average()([doc_inference, context])
-        infer_flattened = Flatten()(infer_merged)
-        infer_output = Dense(1, activation='sigmoid')(infer_flattened)
+        infer_merged = Concatenate(name='infer_merged')([doc_inference, context])
+        infer_flattened = Flatten(name='infer_flattened')(infer_merged)
+        infer_hidden = Dense(self.embedding_size * 3, activation='relu', name='infer_hidden')(infer_flattened)
+        infer_output = Dense(1, activation='sigmoid', name='infer_output')(infer_hidden)
 
+        # Depending on the nature of the Documents, our model inputs/outputs alter
         if self.num_labels > 0:
             infer_model = Model(inputs=[doc_ids, labels, sequence],
                             outputs=infer_output)
         else:
             infer_model = Model(inputs=[doc_ids, sequence], outputs=infer_output)
 
-        infer_model.compile(optimizer='adamax',
-                            loss='binary_crossentropy',
-                            metrics=['accuracy'])
         self.infer_model = infer_model
 
 
     def __split_layer(self):
+        """Keras Lambda to split a layer, used for the sequence data"""
         def _lambda(layer):
             return tf.split(layer, self.seq_size, axis=1)
 
         return _lambda
 
-    def infer_vector(self):
-        """Infer a documents vector by training the model against unseen labels
-        and text
+    # TODO: Determine if we should remove extra params here, or add them to train_model's fit()
+    def infer_vector(self, infer_doc, epochs=5, lr=0.1, init_infer=True):
+        """Infer a documents vector by training the model against unseen labels and text.
+        Currently inferred vector is passed to an attribute and not returned from this function.
 
         Args:
-            document (Document): Document to vectorize
-        Returns:
-            np.array: vector representation of provided document
+            infer_doc (Document): Document for which we will infer a vector
+            epochs (int): number of training cycles
+            lr (float): the learning rate during inference
+            init_infer (bool): determines whether or not we want to reinitalize weights for inference layer
         """
-        raise NotImplementedError("This functionality is not currently implemented.")
+        tmp_generator = self.generator.get_infer_generator(infer_doc)
+
+        if init_infer:
+            sess = K.get_session()
+            self.infer_model.get_layer('inferred_vector').embeddings.initializer.run(session=sess)
+
+        # Copy the weights from the trained model into the inference model
+        for layer in self.infer_model.layers:
+            # Currently using {model_type}_{layer_name} to identify layers to copy
+            if 'infer' == layer.name.split('_')[0]:
+                name = layer.name
+                train_name = f'train_{name.split("_")[1]}'
+                train_weights = self.train_model.get_layer(train_name).get_weights()
+                layer.set_weights(train_weights)
+
+        # We only want to train the document embedding when inferring
+        for layer in self.infer_model.layers:
+            layer.trainable = False
+
+        # By only training the inference layer, we ensure that the inference benefits from previous training
+        self.infer_model.get_layer('inferred_vector').trainable = True
+
+        optimizer = Adamax(lr=lr)
+        self.infer_model.compile(loss="binary_crossentropy",
+                                 optimizer=optimizer,
+                                 metrics=['accuracy'])
+        history = self.infer_model.fit_generator(tmp_generator,
+                                                 steps_per_epoch=1,
+                                                 epochs=epochs)
+
+        self.infer_embedding = self.infer_model.get_layer('inferred_vector').get_weights()[0]
 
     # TODO: Implement check for early stopping!
     def fit(self, epochs):
@@ -139,12 +178,18 @@ class Keras2Vec:
         Args:
             epochs(int): How many times to iterate over the training dataset
         """
+        for layer in self.infer_model.layers:
+            layer.trainable = True
+
         # TODO: Fix weird generator syntax
         self.train_model.fit_generator(self.generator.generator(), steps_per_epoch=1,
                                        epochs=epochs)
 
         self.doc_embeddings = self.train_model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.train_model.get_layer('word_embedding').get_weights()[0]
+
+    def get_infer_embedding(self):
+        return self.infer_embedding
 
     def get_doc_embeddings(self):
         """Get the document vectors/embeddings from the trained model
