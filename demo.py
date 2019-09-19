@@ -55,5 +55,3 @@ if __name__ == "__main__":
     infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
     infer_dist = "{0:0.2f}".format(infer_dist)
     print(f'Document 0 has a cosine similarity of {infer_dist} between train and inferred vectors')
-
-    print("Done")

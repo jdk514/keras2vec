@@ -1,7 +1,7 @@
 # Keras2Vec
 A Keras implementation, enabling gpu support, of Doc2Vec
 
-## Using Keras2Vec
+## Installing Keras2Vec
 This package can be installed via pip:
         
         pip install keras2vec
@@ -51,9 +51,25 @@ if doc_similarity(embeddings, 2, 4) > doc_similarity(embeddings, 2, 10):
     print("Like topics are more similar")
 else:
     print("Something went wrong during training!")
+
+"""Using the trained model we can now infer document vectors by training
+against a model where only the inference layer is trainable"""
+
+inference_doc = "red yellow green blue orange violet green blue orange violet"
+
+doc2vec.infer_vector(Document(0, [], inference_doc), lr=.1, epochs=5)
+infer_vec = doc2vec.get_infer_embedding()
+infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
+infer_dist = "{0:0.2f}".format(infer_dist)
+print(f'Document 0 has a cosine similarity of {infer_dist} between train and inferred vectors')
 ```
 
 ## Changelog
+**Version 0.0.3:**
+ - Added **infer_vector(doc)**, **get_infer_embedding()**
+ - Implemented document inferencing. This enables the ability to infer a document vector from a pre-trained keras2vec model
+ - Modified layer naming for *infer_model* and *train_model* to support sharing weights between the models
+
 **Version 0.0.2:**
  - Added **get_doc_embeddings()**, **get_doc_embedding(doc)**, **get_word_embeddings()**, and **get_word_embedding(word)** so embeddings can be grabbed directly
  - Incorporated Neg-Sampling into Doc2Vec implementation
