@@ -41,11 +41,10 @@ class Keras2Vec:
 
         # Labels aren't required, so determine if they have been added for this model
         if self.num_labels > 0:
-            labels = Input(shape=(self.num_labels,), name='input_labels')
+            labels = Input(shape=(None,), name='input_labels')
 
             label_embedding = Embedding(input_dim=self.label_vocab,
                                         output_dim=self.embedding_size,
-                                        input_length=self.num_labels,
                                         name="label_embedding")(labels)
 
             if self.num_labels > 1:

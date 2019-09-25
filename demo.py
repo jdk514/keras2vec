@@ -29,7 +29,13 @@ if __name__ == "__main__":
 
     inference_doc = "red yellow green blue orange violet green blue orange violet"
 
-    keras_docs = [Document(ix, [], doc) for ix, doc in enumerate(docs)]
+    keras_docs = []
+    for ix, doc in enumerate(docs):
+        if ix < 6:
+            label = 'colors'
+        else:
+            label = 'animals'
+        keras_docs.append(Document(ix, [label], doc))
 
     # TODO: Add ability to auto-select embedding and seq_size based on data
     doc2vec = Keras2Vec(keras_docs, embedding_size=24, seq_size=1)
