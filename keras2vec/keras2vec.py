@@ -52,6 +52,7 @@ class Keras2Vec:
                                   input_length=1,
                                   name="doc_embedding")(doc_ids)
 
+        # TODO: Build own embedding layer enabling variable length label input training
         label_embedding = Embedding(input_dim=self.label_vocab,
                                     output_dim=self.embedding_size,
                                     name="label_embedding")(labels)
@@ -175,7 +176,7 @@ class Keras2Vec:
 
         self.doc_embeddings = self.model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.model.get_layer('word_embedding').get_weights()[0]
-        self.label_embeddings = self.model.get_layer('label_embedding').get_weights()[0]
+        self.label_embeddings = self.model.get_layer('label_embedding').get_weights()[0][1:]
 
 
     def get_infer_embedding(self):
