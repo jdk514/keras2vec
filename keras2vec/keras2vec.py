@@ -1,8 +1,9 @@
 import tensorflow as tf
 import keras.backend as K
 
-from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot
+from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot, Reshape
 from keras.optimizers import Adamax, Adam, SGD
+from keras.backend import mean
 from keras.models import Model
 
 from keras2vec.data_generator import DataGenerator
@@ -38,20 +39,7 @@ class Keras2Vec:
 
         doc_ids = Input(shape=(1,), name='input_docs')
         sequence = Input(shape=(self.seq_size,), name='input_seq')
-
-        # Labels aren't required, so determine if they have been added for this model
-        if self.num_labels > 0:
-            labels = Input(shape=(None,), name='input_labels')
-
-            label_embedding = Embedding(input_dim=self.label_vocab,
-                                        output_dim=self.embedding_size,
-                                        name="label_embedding")(labels)
-
-            if self.num_labels > 1:
-                split_label = Lambda(self.split_layer())(label_embedding)
-                avg_labels = Average()(split_label)
-            else:
-                avg_labels = label_embedding
+        labels = Input(shape=(None,), name='input_labels')
 
         # Setup the embedding layers for training and inference
         doc_inference = Embedding(input_dim=1,
@@ -64,6 +52,10 @@ class Keras2Vec:
                                   input_length=1,
                                   name="doc_embedding")(doc_ids)
 
+        label_embedding = Embedding(input_dim=self.label_vocab,
+                                    output_dim=self.embedding_size,
+                                    name="label_embedding")(labels)
+
         seq_embedding = Embedding(input_dim=self.word_vocab,
                                   output_dim=self.embedding_size,
                                   input_length=self.seq_size,
@@ -71,14 +63,20 @@ class Keras2Vec:
 
         # If the sequence size is greater than 1, we need to average each element
         if self.seq_size > 1:
-            split_seq = Lambda(self.__split_layer())(seq_embedding)
-            avg_seq = Average()(split_seq)
+            split_seq = Lambda(self.__split_layer(self.seq_size), name='split_seq')(seq_embedding)
+            avg_seq = Average(name='avg_seq')(split_seq)
         else:
             avg_seq = seq_embedding
 
+        # If the label size is greater than 1, we need to average each element
+        avg_labels = Lambda(self.__mean_layer(), name='avg_labels')(label_embedding)
+        avg_labels = Reshape((1, 24), name='reshape_labels')(avg_labels)
+        #split_label = Lambda(self.__split_layer(label_embedding.shape[1]))(label_embedding)
+        #avg_labels = Average()(split_label)
+
         # If we have labels, we are currently averaging the seq and label data to provide document context
         if self.num_labels > 0:
-            context = Average()([avg_labels, avg_seq])
+            context = Average(name='avg_context')([avg_labels, avg_seq])
         else:
             context = avg_seq
 
@@ -105,10 +103,16 @@ class Keras2Vec:
             self.model = model
 
 
-    def __split_layer(self):
+    def __mean_layer(self):
+        def _lambda(layer):
+            return mean(layer, axis=1)
+
+        return _lambda
+
+    def __split_layer(self, splits):
         """Keras Lambda to split a layer, used for the sequence data"""
         def _lambda(layer):
-            return tf.split(layer, self.seq_size, axis=1)
+            return tf.split(layer, splits, axis=1)
 
         return _lambda
 
@@ -171,6 +175,7 @@ class Keras2Vec:
 
         self.doc_embeddings = self.model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.model.get_layer('word_embedding').get_weights()[0]
+        self.label_embeddings = self.model.get_layer('label_embedding').get_weights()[0]
 
 
     def get_infer_embedding(self):
@@ -194,6 +199,24 @@ class Keras2Vec:
         """
         enc_doc = self.generator.doc_enc.transform(doc)
         return self.doc_embeddings[enc_doc]
+
+
+    def get_label_embeddings(self):
+        """Get the label vectors/embeddings from the trained model
+        Returns:
+            np.array: Array of the label embeddings"""
+        return self.label_embeddings
+
+
+    def get_label_embedding(self, label):
+        """Get the vector/embedding for the provided label
+        Args:
+            label (object): Object used in the inital generation of the model
+        Returns:
+            np.array: embedding for the provided label
+        """
+        enc_lbl = self.generator.label_enc.transform(label)
+        return self.label_embeddings[enc_lbl]
 
 
     def get_word_embeddings(self):
