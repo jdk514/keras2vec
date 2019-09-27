@@ -11,10 +11,10 @@ class Document:
         text (str): the content of the document
     """
 
-    def __init__(self, doc_id, labels, text):
+    def __init__(self, doc_id, text, labels=[]):
         self.doc_id = doc_id
         # TODO: Implement label implementation
-        self.labels = []
+        self.labels = [''] + labels
         self.text = text.split(' ')
         self.windows = None
 
@@ -42,3 +42,17 @@ class Document:
                     curr_window.append(self.text[w_ix])
 
             self.windows.append(curr_window)
+
+    def __repr__(self):
+        rep_labels = self.labels
+        rep_text = ' '.join(self.text)
+        clipped_labels = clipped_text = ''
+
+        if len(rep_labels) > 3:
+            rep_labels = self.labels[:3]
+            clipped_labels = '...'
+        if len(rep_text) > 15:
+            rep_text = rep_text[:15]
+            clipped_text = '...'
+
+        return f'Doc {self.doc_id} - Labels: {rep_labels}{clipped_labels} | Text: {rep_text}{clipped_text}'
