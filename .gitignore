@@ -13,3 +13,4 @@ commands.txt
 /dist/*
 /Keras2Vec.egg-info/*
 /build/*
+keras2vec.requirements
