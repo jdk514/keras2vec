@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import tensorflow as tf
 import keras.backend as K
 
@@ -39,7 +42,7 @@ class Keras2Vec:
 
         doc_ids = Input(shape=(1,), name='input_docs')
         sequence = Input(shape=(self.seq_size,), name='input_seq')
-        labels = Input(shape=(None,), name='input_labels')
+        labels = Input(shape=(1,), name='input_labels')
 
         # Setup the embedding layers for training and inference
         doc_inference = Embedding(input_dim=1,
@@ -119,7 +122,7 @@ class Keras2Vec:
 
 
     # TODO: Determine if we should remove extra params here, or add them to train_model's fit()
-    def infer_vector(self, infer_doc, epochs=5, lr=0.1, init_infer=True):
+    def infer_vector(self, infer_doc, epochs=5, lr=0.1, init_infer=True, verbose=0):
         """Infer a documents vector by training the model against unseen labels and text.
         Currently inferred vector is passed to an attribute and not returned from this function.
 
@@ -155,13 +158,14 @@ class Keras2Vec:
 
         optimizer = Adamax(lr=lr)
         self.infer_model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['accuracy'])
-        history = self.infer_model.fit_generator(tmp_generator, steps_per_epoch=1, epochs=epochs)
+        history = self.infer_model.fit_generator(tmp_generator, steps_per_epoch=1,
+                                                 epochs=epochs, verbose=verbose)
 
         self.infer_embedding = self.infer_model.get_layer('inferred_doc').get_weights()[0]
 
 
     # TODO: Implement check for early stopping!
-    def fit(self, epochs, lr=0.1):
+    def fit(self, epochs, lr=0.1, verbose=0):
         """This function trains Keras2Vec with the provided documents
 
         Args:
@@ -172,7 +176,7 @@ class Keras2Vec:
 
         # TODO: Fix weird generator syntax
         self.model.fit_generator(self.generator.generator(), steps_per_epoch=1,
-                                       epochs=epochs)
+                                       epochs=epochs, verbose=verbose)
 
         self.doc_embeddings = self.model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.model.get_layer('word_embedding').get_weights()[0]
@@ -217,7 +221,8 @@ class Keras2Vec:
             np.array: embedding for the provided label
         """
         enc_lbl = self.generator.label_enc.transform(label)
-        return self.label_embeddings[enc_lbl]
+        # Since we remove the default label from the pool, we are always one index less
+        return self.label_embeddings[enc_lbl-1]
 
 
     def get_word_embeddings(self):
