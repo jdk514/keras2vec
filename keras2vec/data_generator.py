@@ -81,14 +81,14 @@ class DataGenerator:
                 batch_outputs.append(outputs)
 
             if len(self.label_vocab) > 0:
-                inputs = [np.array(batch_docs),
+                inputs = [np.vstack(batch_docs),
                           np.vstack(batch_labels),
                           np.vstack(batch_words)]
             else:
                 inputs = [np.vstack(batch_docs), np.vstack(batch_words)]
 
             outputs = np.vstack(batch_outputs)
-            yield [np.vstack(batch_docs), np.array(batch_words)], outputs
+            yield inputs, outputs
 
 
     # TODO: Replace with generator
@@ -127,23 +127,25 @@ class DataGenerator:
         enc_doc = self.doc_enc.transform(doc.doc_id)
         enc_labels = [self.label_enc.transform(lbl) for lbl in doc.labels]
         for window in doc.windows:
-            enc_words = [self.text_enc.transform(word) for word in window]
-            docs.append(enc_doc)
-            labels.append(enc_labels)
-            words.append(enc_words)
-            outputs.append(1)
+            for label in enc_labels:
+                enc_words = [self.text_enc.transform(word) for word in window]
+                docs.append(enc_doc)
+                labels.append([label])
+                words.append(enc_words)
+                outputs.append(1)
 
             if self.neg_samples > 0:
                 for neg_samp in self.neg_sampling(window):
-                    enc_words = [self.text_enc.transform(word) for word in neg_samp]
-                    docs.append(enc_doc)
-                    labels.append(enc_labels)
-                    words.append(enc_words)
-                    outputs.append(0)
+                    for label in enc_labels:
+                        enc_words = [self.text_enc.transform(word) for word in neg_samp]
+                        docs.append(enc_doc)
+                        labels.append([label])
+                        words.append(enc_words)
+                        outputs.append(0)
 
 
         ret = (np.vstack(docs),
-               np.vstack(labels),
+               labels,
                words,
                np.vstack(outputs))
 
