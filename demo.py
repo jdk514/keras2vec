@@ -5,6 +5,8 @@ from keras2vec.document import Document
 
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 
+import matplotlib.pyplot as plt
+
 def doc_similarity(embeddings, id_1, id_2):
     doc1 = embeddings[id_1].reshape(1, -1)
     doc2 = embeddings[id_2].reshape(1, -1)
@@ -53,11 +55,15 @@ if __name__ == "__main__":
     keras_docs.extend([Document(doc_count + ix, text, ['animal', 'color']) for ix, text in enumerate(animal_color_docs)])
 
     # TODO: Add ability to auto-select embedding and seq_size based on data
-    doc2vec = Keras2Vec(keras_docs, embedding_size=24, seq_size=1)
+    doc2vec = Keras2Vec(keras_docs, embedding_size=24, seq_size=3)
     doc2vec.build_model()
     # If the number of epochs is to low, the check at the bottom may fail!
     print("Training Model:")
-    doc2vec.fit(150)
+    history = doc2vec.fit(250)
+    plt.plot(history.history['acc'], label='train')
+    plt.plot(history.history['val_acc'], label='test')
+    plt.legend()
+    plt.show()
     print("\ttraining complete!")
 
     embeddings = doc2vec.get_doc_embeddings()
@@ -74,7 +80,7 @@ if __name__ == "__main__":
     """Using the trained model we can now infer document vectors by training
     against a model where only the inference layer is trainable"""
 
-    doc2vec.infer_vector(Document(0, inference_doc, []), lr=.1, epochs=5)
+    doc2vec.infer_vector(Document(0, inference_doc, ['color']), lr=.1, epochs=50)
     infer_vec = doc2vec.get_infer_embedding()
     infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
     infer_dist = "{0:0.2f}".format(infer_dist)
