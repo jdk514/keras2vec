@@ -5,6 +5,7 @@ import tensorflow as tf
 import keras.backend as K
 
 from keras.layers import Input, Embedding, Average, Dense, Lambda, Concatenate, Flatten, Dot, Reshape
+from keras.callbacks import EarlyStopping
 from keras.optimizers import Adamax, Adam, SGD
 from keras.backend import mean
 from keras.models import Model
@@ -22,11 +23,13 @@ class Keras2Vec:
         documents (:obj:`list` of :obj:`Document`): List of documents to vectorize
     """
 
-    def __init__(self, documents, embedding_size=16, seq_size=3, neg_sampling=5):
+    def __init__(self, documents, embedding_size=16, seq_size=3, neg_sampling=5, workers=1):
         self.model = self.infer_model = None
         self.word_embeddings = self.doc_embeddings = self.infer_embedding = None
 
-        self.generator = DataGenerator(documents, seq_size, neg_sampling)
+        self.generator = DataGenerator(documents, seq_size, neg_sampling, 2)
+        # TODO: Fix validation generator - some issue with time perofrmance with val_gen=True
+        self.val_generator = DataGenerator(documents, seq_size, neg_sampling, 2)
         # TODO: Fix method for getting model attributes
         self.doc_vocab = len(self.generator.doc_vocab)
         self.label_vocab = len(self.generator.label_vocab)
@@ -35,6 +38,8 @@ class Keras2Vec:
 
         self.embedding_size = embedding_size
         self.seq_size = seq_size
+
+        self.workers=workers
 
 
     def build_model(self, infer=False):
@@ -74,7 +79,7 @@ class Keras2Vec:
 
         # If the label size is greater than 1, we need to average each element
         avg_labels = Lambda(self.__mean_layer(), name='avg_labels')(label_embedding)
-        avg_labels = Reshape((1, 24), name='reshape_labels')(avg_labels)
+        avg_labels = Reshape((1, self.embedding_size), name='reshape_labels')(avg_labels)
         #split_label = Lambda(self.__split_layer(label_embedding.shape[1]))(label_embedding)
         #avg_labels = Average()(split_label)
 
@@ -158,10 +163,13 @@ class Keras2Vec:
 
         optimizer = Adamax(lr=lr)
         self.infer_model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['accuracy'])
-        history = self.infer_model.fit_generator(tmp_generator, steps_per_epoch=1,
-                                                 epochs=epochs, verbose=verbose)
+
+        es = EarlyStopping(monitor='loss', patience=7, verbose=1)
+        history = self.infer_model.fit_generator(tmp_generator, epochs=epochs, verbose=verbose, callbacks=[es])
 
         self.infer_embedding = self.infer_model.get_layer('inferred_doc').get_weights()[0]
+
+        return history
 
 
     # TODO: Implement check for early stopping!
@@ -171,17 +179,25 @@ class Keras2Vec:
         Args:
             epochs(int): How many times to iterate over the training dataset
         """
+        es = EarlyStopping(monitor='loss', patience=7, verbose=1)
+
         optimizer = Adamax(lr=lr)
         self.model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['accuracy'])
 
         # TODO: Fix weird generator syntax
-        self.model.fit_generator(self.generator.generator(), steps_per_epoch=1,
-                                       epochs=epochs, verbose=verbose)
+        if self.workers > 1:
+            history = self.model.fit_generator(self.generator, epochs=epochs, verbose=verbose, callbacks=[es],
+                                           validation_steps=20, validation_data=self.val_generator,
+                                           use_multiprocessing=True, workers=2)
+        else:
+            history = self.model.fit_generator(self.generator, epochs=epochs, verbose=verbose, callbacks=[es],
+                                               validation_steps=20, validation_data=self.val_generator)
 
         self.doc_embeddings = self.model.get_layer('doc_embedding').get_weights()[0]
         self.word_embeddings = self.model.get_layer('word_embedding').get_weights()[0]
         self.label_embeddings = self.model.get_layer('label_embedding').get_weights()[0][1:]
 
+        return history
 
     def get_infer_embedding(self):
         return self.infer_embedding
