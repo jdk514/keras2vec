@@ -11,6 +11,7 @@
 # Project files
 commands.txt
 /dist/*
+.eggs/*
 /Keras2Vec.egg-info/*
 /build/*
 keras2vec.requirements
