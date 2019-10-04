@@ -57,7 +57,7 @@ if __name__ == "__main__":
     doc2vec.build_model()
     # If the number of epochs is to low, the check at the bottom may fail!
     print("Training Model:")
-    doc2vec.fit(150)
+    history = doc2vec.fit(250, verbose=1)
     print("\ttraining complete!")
 
     embeddings = doc2vec.get_doc_embeddings()
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     """Using the trained model we can now infer document vectors by training
     against a model where only the inference layer is trainable"""
 
-    doc2vec.infer_vector(Document(0, inference_doc, []), lr=.1, epochs=5)
+    doc2vec.infer_vector(Document(0, inference_doc, ['color']), lr=.1, epochs=50)
     infer_vec = doc2vec.get_infer_embedding()
     infer_dist = cosine_similarity(infer_vec.reshape(1, -1), embeddings[0].reshape(1, -1))[0][0]
     infer_dist = "{0:0.2f}".format(infer_dist)
