@@ -5,8 +5,6 @@ from keras2vec.document import Document
 
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 
-import matplotlib.pyplot as plt
-
 def doc_similarity(embeddings, id_1, id_2):
     doc1 = embeddings[id_1].reshape(1, -1)
     doc2 = embeddings[id_2].reshape(1, -1)
@@ -55,15 +53,11 @@ if __name__ == "__main__":
     keras_docs.extend([Document(doc_count + ix, text, ['animal', 'color']) for ix, text in enumerate(animal_color_docs)])
 
     # TODO: Add ability to auto-select embedding and seq_size based on data
-    doc2vec = Keras2Vec(keras_docs, embedding_size=24, seq_size=3)
+    doc2vec = Keras2Vec(keras_docs, embedding_size=24, seq_size=1)
     doc2vec.build_model()
     # If the number of epochs is to low, the check at the bottom may fail!
     print("Training Model:")
-    history = doc2vec.fit(250)
-    plt.plot(history.history['acc'], label='train')
-    plt.plot(history.history['val_acc'], label='test')
-    plt.legend()
-    plt.show()
+    history = doc2vec.fit(250, verbose=1)
     print("\ttraining complete!")
 
     embeddings = doc2vec.get_doc_embeddings()

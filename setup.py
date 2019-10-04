@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="Keras2Vec",
-    version="0.0.3",
+    version="0.1.1",
     author="Joel Klein",
     author_email="jdk51405@gmail.com",
     description="Keras implementation of Doc2Vec",

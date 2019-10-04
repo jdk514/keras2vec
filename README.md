@@ -107,6 +107,9 @@ if __name__ == "__main__":
 ```
 
 ## Changelog
+**Version 0.1.1:**
+ - Bug fixes
+
 **Version 0.1.0:**
  - Added **get_label_embeddings()**, **get_label_embedding(label)**
    - *Note: Labels will no longer be ignored when generating **Document()** objects*
